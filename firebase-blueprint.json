@@ -1,0 +1,270 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private profile and notification preferences for an authenticated campus student.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the student."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Student display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Authenticated student email address."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Saved default contact phone number for faster reporting."
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Profile avatar URL from Google Sign-In."
+        },
+        "notificationsEnabled": {
+          "type": "boolean",
+          "description": "Whether real-time campus alerts are enabled."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was created (clients write FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was last updated (clients write FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "CampusItem": {
+      "title": "CampusItem",
+      "description": "A lost or found item reported on university grounds with contact phone number and optional photo.",
+      "type": "object",
+      "properties": {
+        "reporterId": {
+          "type": "string",
+          "description": "UID of the student who reported the item."
+        },
+        "reporterName": {
+          "type": "string",
+          "description": "Display name of the student who reported the item."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short item title."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description and identifying marks."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["electronics", "id_keys", "bags", "books", "accessories", "clothing", "other"],
+          "description": "Item category."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["lost", "found"],
+          "description": "Whether the item was lost or found."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "claimed", "recovered"],
+          "description": "Current recovery status."
+        },
+        "location": {
+          "type": "string",
+          "description": "Campus building or ground where item was lost or found."
+        },
+        "contactPhone": {
+          "type": "string",
+          "description": "Contact phone number shared with campus students to call and coordinate pickup."
+        },
+        "photoBase64": {
+          "type": "string",
+          "description": "Optional compressed JPEG Base64 string of the uploaded item photo."
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["campus"],
+          "description": "Campus-wide visibility scope for authenticated students."
+        },
+        "claimCount": {
+          "type": "integer",
+          "description": "Number of pickup/found claims submitted."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when reported (clients write FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when last updated (clients write FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "reporterId",
+        "reporterName",
+        "title",
+        "description",
+        "category",
+        "type",
+        "status",
+        "location",
+        "contactPhone",
+        "visibility",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ItemClaim": {
+      "title": "ItemClaim",
+      "description": "A pickup coordination or found claim submitted by another student on a CampusItem.",
+      "type": "object",
+      "properties": {
+        "itemId": {
+          "type": "string",
+          "description": "Parent CampusItem document ID."
+        },
+        "itemReporterId": {
+          "type": "string",
+          "description": "UID of the parent CampusItem reporter (denormalized for query enforcement)."
+        },
+        "claimantId": {
+          "type": "string",
+          "description": "UID of the student submitting the claim."
+        },
+        "claimantName": {
+          "type": "string",
+          "description": "Display name of the claimant."
+        },
+        "claimantPhone": {
+          "type": "string",
+          "description": "Contact phone number of the claimant."
+        },
+        "message": {
+          "type": "string",
+          "description": "Pickup or verification note."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "accepted", "dismissed"],
+          "description": "Claim review status."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when submitted (clients write FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when last updated (clients write FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "itemId",
+        "itemReporterId",
+        "claimantId",
+        "claimantName",
+        "claimantPhone",
+        "message",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserNotification": {
+      "title": "UserNotification",
+      "description": "Real-time notification delivered to a student about claims or item status updates.",
+      "type": "object",
+      "properties": {
+        "recipientId": {
+          "type": "string",
+          "description": "UID of the receiving student."
+        },
+        "senderId": {
+          "type": "string",
+          "description": "UID of the student triggering the alert."
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Display name of the sender."
+        },
+        "senderPhone": {
+          "type": "string",
+          "description": "Optional callback phone number."
+        },
+        "itemId": {
+          "type": "string",
+          "description": "Related CampusItem document ID."
+        },
+        "itemTitle": {
+          "type": "string",
+          "description": "Title of the related item."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["claim_received", "item_status", "campus_alert"],
+          "description": "Notification type."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short notification headline."
+        },
+        "body": {
+          "type": "string",
+          "description": "Notification detail text."
+        },
+        "read": {
+          "type": "boolean",
+          "description": "Read flag."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created (clients write FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "recipientId",
+        "senderId",
+        "senderName",
+        "itemId",
+        "itemTitle",
+        "type",
+        "title",
+        "body",
+        "read",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private student profile and saved contact preferences."
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/UserNotification" },
+      "description": "User-scoped real-time notifications for pickup claims and updates."
+    },
+    "/campus_items/{itemId}": {
+      "schema": { "$ref": "#/entities/CampusItem" },
+      "description": "Campus-wide lost and found reports visible to signed-in students."
+    },
+    "/campus_items/{itemId}/claims/{claimId}": {
+      "schema": { "$ref": "#/entities/ItemClaim" },
+      "description": "Pickup coordination claims submitted on a reported item."
+    }
+  }
+}

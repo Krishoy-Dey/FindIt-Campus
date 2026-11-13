@@ -1,0 +1,6 @@
+{
+  "name": "FindIt Campus",
+  "description": "A minimalist dark-themed Lost & Found app for university students to report, browse, and recover misplaced items across campus with photo uploads, real-time notifications, and direct phone contact.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

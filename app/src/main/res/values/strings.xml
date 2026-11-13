@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">FindIt Campus</string>
+    <string name="tagline_campus">University Lost &amp; Found</string>
+    <string name="auth_headline">Reunite with what matters on campus</string>
+    <string name="auth_subtitle">Report misplaced belongings, upload photos, get instant alerts, and call directly to coordinate pickup.</string>
+    <string name="action_sign_in_google">Sign in with Google</string>
+    <string name="action_sign_out">Sign Out</string>
+    <string name="tab_feed">Feed</string>
+    <string name="tab_alerts">Alerts</string>
+    <string name="tab_my_items">My Items</string>
+    <string name="action_report_item">Report Item</string>
+    <string name="action_call_to_coordinate">Call to Coordinate</string>
+    <string name="action_copy_number">Copy Number</string>
+    <string name="action_claim_found">I Found This / Claim</string>
+    <string name="action_mark_recovered">Mark as Recovered</string>
+    <string name="action_mark_claimed">Mark Pending Pickup</string>
+    <string name="action_reopen_item">Reopen Listing</string>
+    <string name="action_delete_report">Delete Report</string>
+    <string name="action_mark_all_read">Mark all read</string>
+    <string name="search_placeholder">Search items or campus buildings...</string>
+    <string name="empty_feed_title">No matching items</string>
+    <string name="empty_feed_subtitle">Try another filter or tap Report Item to post a lost or found belonging.</string>
+    <string name="empty_alerts_title">All caught up</string>
+    <string name="empty_alerts_subtitle">Real-time pickup claims and campus alerts will appear here immediately.</string>
+    <string name="empty_my_items_title">No reports yet</string>
+    <string name="empty_my_items_subtitle">Items you report as lost or found will show up here for quick status tracking.</string>
+    <string name="phone_visibility_hint">Shared with signed-in campus students so they can call you directly to coordinate pickup.</string>
+</resources>

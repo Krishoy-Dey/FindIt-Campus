@@ -1,0 +1,248 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // --- Entity Validation Helpers ---
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+             (!('phoneNumber' in data) || data.phoneNumber == null || (data.phoneNumber is string && data.phoneNumber.size() <= 30)) &&
+             (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             (!('notificationsEnabled' in data) || data.notificationsEnabled == null || data.notificationsEnabled is bool) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCampusItem(data) {
+      return data.reporterId is string && data.reporterId.size() >= 1 && data.reporterId.size() <= 128 &&
+             data.reporterName is string && data.reporterName.size() >= 1 && data.reporterName.size() <= 80 &&
+             data.title is string && data.title.size() >= 2 && data.title.size() <= 100 &&
+             data.description is string && data.description.size() >= 2 && data.description.size() <= 1000 &&
+             data.category is string && data.category in ['electronics', 'id_keys', 'bags', 'books', 'accessories', 'clothing', 'other'] &&
+             data.type is string && data.type in ['lost', 'found'] &&
+             data.status is string && data.status in ['open', 'claimed', 'recovered'] &&
+             data.location is string && data.location.size() >= 2 && data.location.size() <= 120 &&
+             data.contactPhone is string && data.contactPhone.size() >= 5 && data.contactPhone.size() <= 25 &&
+             data.visibility is string && data.visibility == 'campus' &&
+             (!('photoBase64' in data) || data.photoBase64 == null || (data.photoBase64 is string && data.photoBase64.size() <= 350000)) &&
+             (!('claimCount' in data) || data.claimCount == null || (data.claimCount is int && data.claimCount >= 0 && data.claimCount <= 1000)) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidClaim(data) {
+      return data.itemId is string && isValidId(data.itemId) &&
+             data.itemReporterId is string && data.itemReporterId.size() >= 1 && data.itemReporterId.size() <= 128 &&
+             data.claimantId is string && data.claimantId.size() >= 1 && data.claimantId.size() <= 128 &&
+             data.claimantName is string && data.claimantName.size() >= 1 && data.claimantName.size() <= 80 &&
+             data.claimantPhone is string && data.claimantPhone.size() >= 5 && data.claimantPhone.size() <= 25 &&
+             data.message is string && data.message.size() >= 2 && data.message.size() <= 400 &&
+             data.status is string && data.status in ['pending', 'accepted', 'dismissed'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidNotification(data) {
+      return data.recipientId is string && data.recipientId.size() >= 1 && data.recipientId.size() <= 128 &&
+             data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 80 &&
+             (!('senderPhone' in data) || data.senderPhone == null || (data.senderPhone is string && data.senderPhone.size() <= 25)) &&
+             data.itemId is string && isValidId(data.itemId) &&
+             data.itemTitle is string && data.itemTitle.size() >= 1 && data.itemTitle.size() <= 100 &&
+             data.type is string && data.type in ['claim_received', 'item_status', 'campus_alert'] &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.body is string && data.body.size() >= 1 && data.body.size() <= 400 &&
+             data.read is bool &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // --- Collection: /users/{userId} ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'email', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'phoneNumber', 'photoUrl', 'notificationsEnabled', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'phoneNumber', 'photoUrl', 'notificationsEnabled', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      // --- Subcollection: /users/{userId}/notifications/{notificationId} ---
+      match /notifications/{notificationId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(notificationId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(notificationId) &&
+                         incoming().keys().hasAll(['recipientId', 'senderId', 'senderName', 'itemId', 'itemTitle', 'type', 'title', 'body', 'read', 'createdAt']) &&
+                         incoming().keys().hasOnly(['recipientId', 'senderId', 'senderName', 'senderPhone', 'itemId', 'itemTitle', 'type', 'title', 'body', 'read', 'createdAt']) &&
+                         isValidNotification(incoming()) &&
+                         incoming().recipientId == userId &&
+                         incoming().senderId == request.auth.uid &&
+                         incoming().read == false &&
+                         (
+                           userId == request.auth.uid ||
+                           (
+                             exists(/databases/$(database)/documents/campus_items/$(incoming().itemId)) &&
+                             get(/databases/$(database)/documents/campus_items/$(incoming().itemId)).data.reporterId == userId
+                           )
+                         );
+
+        allow update: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(notificationId) &&
+                         request.auth.uid == userId &&
+                         isValidNotification(incoming()) &&
+                         incoming().recipientId == existing().recipientId &&
+                         incoming().senderId == existing().senderId &&
+                         incoming().itemId == existing().itemId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(notificationId) && request.auth.uid == userId;
+      }
+    }
+
+    // --- Collection: /campus_items/{itemId} ---
+    match /campus_items/{itemId} {
+      allow get: if isSignedIn() && isValidId(itemId) && (existing().visibility == 'campus' || existing().reporterId == request.auth.uid);
+      allow list: if isSignedIn() && (existing().visibility == 'campus' || existing().reporterId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+                       isValidId(itemId) &&
+                       incoming().reporterId == request.auth.uid &&
+                       incoming().status == 'open' &&
+                       incoming().visibility == 'campus' &&
+                       (!('claimCount' in incoming()) || incoming().claimCount == 0) &&
+                       incoming().keys().hasAll([
+                         'reporterId', 'reporterName', 'title', 'description',
+                         'category', 'type', 'status', 'location', 'contactPhone',
+                         'visibility', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'reporterId', 'reporterName', 'title', 'description',
+                         'category', 'type', 'status', 'location', 'contactPhone',
+                         'photoBase64', 'visibility', 'claimCount', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidCampusItem(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(itemId) &&
+                       isValidCampusItem(incoming()) &&
+                       existing().status != 'recovered' &&
+                       incoming().reporterId == existing().reporterId &&
+                       incoming().visibility == existing().visibility &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Tier 1: Reporter edits item details or advances status
+                         (
+                           existing().reporterId == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'reporterName', 'title', 'description', 'category',
+                             'type', 'status', 'location', 'contactPhone',
+                             'photoBase64', 'updatedAt'
+                           ])
+                         ) ||
+                         // Tier 2: Signed-in student increments claimCount when submitting a pickup claim
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly(['claimCount', 'updatedAt']) &&
+                           incoming().claimCount is int &&
+                           ((!('claimCount' in existing()) && incoming().claimCount == 1) ||
+                            (('claimCount' in existing()) && incoming().claimCount == existing().claimCount + 1))
+                         )
+                       );
+
+      allow delete: if isSignedIn() && isValidId(itemId) && existing().reporterId == request.auth.uid;
+
+      // --- Subcollection: /campus_items/{itemId}/claims/{claimId} ---
+      match /claims/{claimId} {
+        allow get: if isSignedIn() && isValidId(itemId) && isValidId(claimId) &&
+                      (existing().claimantId == request.auth.uid || existing().itemReporterId == request.auth.uid);
+        allow list: if isSignedIn() &&
+                       (existing().claimantId == request.auth.uid || existing().itemReporterId == request.auth.uid);
+
+        allow create: if isSignedIn() &&
+                         isValidId(itemId) &&
+                         isValidId(claimId) &&
+                         incoming().keys().hasAll([
+                           'itemId', 'itemReporterId', 'claimantId', 'claimantName',
+                           'claimantPhone', 'message', 'status', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'itemId', 'itemReporterId', 'claimantId', 'claimantName',
+                           'claimantPhone', 'message', 'status', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidClaim(incoming()) &&
+                         incoming().itemId == itemId &&
+                         incoming().claimantId == request.auth.uid &&
+                         incoming().status == 'pending' &&
+                         exists(/databases/$(database)/documents/campus_items/$(itemId)) &&
+                         get(/databases/$(database)/documents/campus_items/$(itemId)).data.status != 'recovered' &&
+                         incoming().itemReporterId == get(/databases/$(database)/documents/campus_items/$(itemId)).data.reporterId;
+
+        allow update: if isSignedIn() &&
+                         isValidId(itemId) &&
+                         isValidId(claimId) &&
+                         isValidClaim(incoming()) &&
+                         incoming().itemId == existing().itemId &&
+                         incoming().itemReporterId == existing().itemReporterId &&
+                         incoming().claimantId == existing().claimantId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (
+                             existing().itemReporterId == request.auth.uid &&
+                             existing().status == 'pending' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                           ) ||
+                           (
+                             existing().claimantId == request.auth.uid &&
+                             existing().status == 'pending' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['claimantPhone', 'message', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isSignedIn() && isValidId(itemId) && isValidId(claimId) &&
+                         (existing().claimantId == request.auth.uid || existing().itemReporterId == request.auth.uid);
+      }
+    }
+  }
+}
